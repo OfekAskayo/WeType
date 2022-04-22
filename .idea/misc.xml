@@ -3,6 +3,11 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/Users/Ofek/AndroidStudioProjects/WeType/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" value="0.2185" />
+        <entry key="..\:/Users/Ofek/AndroidStudioProjects/WeType/app/src/main/res/drawable/ic_baseline_highlight_24.xml" value="0.2185" />
+        <entry key="..\:/Users/Ofek/AndroidStudioProjects/WeType/app/src/main/res/drawable/ic_launcher_background.xml" value="0.2185" />
+        <entry key="..\:/Users/Ofek/AndroidStudioProjects/WeType/app/src/main/res/drawable/ic_twotone_highlight_24.xml" value="0.2185" />
+        <entry key="..\:/Users/Ofek/AndroidStudioProjects/WeType/app/src/main/res/layout/activity_main.xml" value="0.20906370243693886" />
         <entry key="..\:/Users/Ofek/AndroidStudioProjects/WeType/app/src/main/res/layout/message.xml" value="0.25" />
         <entry key="..\:/Users/Ofek/AndroidStudioProjects/WeType/app/src/main/res/menu/main_menu.xml" value="0.1" />
       </map>

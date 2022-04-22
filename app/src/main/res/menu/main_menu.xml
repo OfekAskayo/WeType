@@ -2,8 +2,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <item android:id="@+id/menu_location"
+        android:title="@string/location"
+        android:icon="@drawable/ic_towtone_menu_location"
+        app:showAsAction="ifRoom|withText" />
+    <item android:id="@+id/menu_flashlight"
+        android:title="@string/flashlight"
+        android:icon="@drawable/ic_towtone_menu_highlight"
+        app:showAsAction="ifRoom|withText" />
     <item android:id="@+id/menu_sign_out"
         android:title="@string/sign_out"
+        android:icon="@drawable/ic_towtone_menu_signout"
         app:showAsAction="never" />
 
 </menu>

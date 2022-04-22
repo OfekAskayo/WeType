@@ -1,21 +1,39 @@
 package com.school.wetype;
 
+import static com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY;
+import static com.google.android.gms.location.LocationRequest.PRIORITY_NO_POWER;
+
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Camera;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract;
@@ -23,18 +41,27 @@ import com.firebase.ui.auth.IdpResponse;
 import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult;
 import com.firebase.ui.database.FirebaseListAdapter;
 import com.firebase.ui.database.FirebaseListOptions;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.CancellationToken;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.OnTokenCanceledListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.FirebaseDatabase;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
+@RequiresApi(api = Build.VERSION_CODES.N)
 public class MainActivity extends AppCompatActivity {
 
-    private static final int SIGN_IN_REQUEST_CODE = 1;
+    private static final int PERMISSION_REQUEST_CODE = 1;
+
     private FirebaseListAdapter<ChatMessage> adapter;
     private final ActivityResultLauncher<Intent> signInLauncher = registerForActivityResult(
             new FirebaseAuthUIActivityResultContract(),
@@ -45,12 +72,35 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
     );
+    private final ActivityResultLauncher<String[]> locationPermissionRequest =
+            registerForActivityResult(new ActivityResultContracts
+                            .RequestMultiplePermissions(), result -> {
+                        Boolean fineLocationGranted = result.getOrDefault(
+                                Manifest.permission.ACCESS_FINE_LOCATION, false);
+                        Boolean coarseLocationGranted = result.getOrDefault(
+                                Manifest.permission.ACCESS_COARSE_LOCATION, false);
+                        if (fineLocationGranted != null && fineLocationGranted) {
+                            // Precise location access granted.
+                        } else if (coarseLocationGranted != null && coarseLocationGranted) {
+                            // Only approximate location access granted.
+                        } else {
+                            // No location access granted.
+                        }
+                    }
+            );
+    private FusedLocationProviderClient fusedLocationClient;
 
+    private CameraManager cameraManager;
+    private String getCameraID;
+    private boolean torchModeEnabled;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        FloatingActionButton fab = findViewById(R.id.fab);
+        torchModeEnabled = false;
 
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
             /* startActivityForResult(
@@ -68,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
             Intent signInIntent = AuthUI.getInstance()
                     .createSignInIntentBuilder()
                     .setAvailableProviders(providers)
+                    .setTheme(R.style.Theme_WeType)
                     .build();
             signInLauncher.launch(signInIntent);
         } else {
@@ -81,48 +132,34 @@ public class MainActivity extends AppCompatActivity {
             displayChatMessages();
         }
 
-//        FirebaseDatabase.getInstance().getReference("message").addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(DataSnapshot dataSnapshot) {
-//                // This method is called once with the initial value and again
-//                // whenever data at this location is updated.
-//                String value = dataSnapshot.getValue(String.class);
-//                Log.d("MAIN ACTIVITY", "Value is: " + value);
-//            }
-//
-//            @Override
-//            public void onCancelled(DatabaseError error) {
-//                // Failed to read value
-//                Log.w("MAIN ACTIVITY", "Failed to read value.", error.toException());
-//            }
-//        });
-
-        FloatingActionButton fab = findViewById(R.id.fab);
-
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 EditText input = findViewById(R.id.input);
+                String messageText = input.getText().toString();
 
-                // Write a message to the database
-//                FirebaseDatabase database = FirebaseDatabase.getInstance();
-//                database.getReference("message").setValue("Hello, World!");
-//                database.getReference("message").push().setValue("Hello World! Push");
-
-                // Read the input field and push a new instance
-                // of ChatMessage to the Firebase database
-                FirebaseDatabase.getInstance()
-                        .getReference()
-                        .push()
-                        .setValue(new ChatMessage(input.getText().toString(),
-                                FirebaseAuth.getInstance()
-                                        .getCurrentUser()
-                                        .getDisplayName())
-                        );
+                MainActivity.this.sendChatMessage(messageText);
 
                 input.setText("");
             }
         });
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        // cameraManager to interact with camera devices
+        cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
+
+        // Exception is handled, because to check whether
+        // the camera resource is being used by another
+        // service or not.
+
+        try {
+            // O means back camera unit,
+            // 1 means front camera unit
+            getCameraID = cameraManager.getCameraIdList()[0];
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -168,10 +205,82 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                 return true;
+            case R.id.menu_flashlight:
+                MainActivity.this.torchModeEnabled = !MainActivity.this.torchModeEnabled;
+
+                try {
+                    cameraManager.setTorchMode(getCameraID, MainActivity.this.torchModeEnabled);
+
+                    if (MainActivity.this.torchModeEnabled) {
+                        Toast.makeText(MainActivity.this, "Flashlight is turned ON", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "Flashlight is turned OFF", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (CameraAccessException e) {
+                    e.printStackTrace();
+                }
+                return true;
+            case R.id.menu_location:
+                item.setEnabled(false);
+                item.getIcon().setAlpha(72);
+                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                        && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    locationPermissionRequest.launch(new String[]{
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    });
+                    return true;
+                }
+
+                fusedLocationClient.getCurrentLocation(PRIORITY_HIGH_ACCURACY, new CancellationToken() {
+                    @NonNull
+                    @Override
+                    public CancellationToken onCanceledRequested(@NonNull OnTokenCanceledListener onTokenCanceledListener) {
+                        return null;
+                    }
+
+                    @Override
+                    public boolean isCancellationRequested() {
+                        return false;
+                    }
+                }).addOnSuccessListener(new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        // Got last known location. In some rare situations this can be null.
+                        if (location != null) {
+                            double latitude = location.getLatitude();
+                            double longitude = location.getLongitude();
+
+                            Geocoder geocoder;
+                            List<Address> addresses = null;
+                            geocoder = new Geocoder(MainActivity.this, Locale.getDefault());
+
+                            try {
+                                addresses = geocoder.getFromLocation(latitude, longitude, 1);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+
+                            Address address = addresses.get(0);
+                            String knownName = address.getLocality() + ", " + address.getThoroughfare();
+
+                            String messageText = "My current location is: \n" + knownName;
+
+                            MainActivity.this.sendChatMessage(messageText);
+                        } else {
+                            Toast.makeText(MainActivity.this, "Couldn't get current location, please try again later", Toast.LENGTH_LONG).show();
+                        }
+
+                        item.setEnabled(true);
+                        item.getIcon().setAlpha(153);
+                    }
+                });
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
+
 
     private void onSignInResult(FirebaseAuthUIAuthenticationResult result) {
         IdpResponse response = result.getIdpResponse();
@@ -225,5 +334,23 @@ public class MainActivity extends AppCompatActivity {
         };
 
         listOfMessages.setAdapter(adapter);
+    }
+
+    private void sendChatMessage(String messageText) {
+        // Write a message to the database
+//                FirebaseDatabase database = FirebaseDatabase.getInstance();
+//                database.getReference("message").setValue("Hello, World!");
+//                database.getReference("message").push().setValue("Hello World! Push");
+
+        // Read the input field and push a new instance
+        // of ChatMessage to the Firebase database
+        FirebaseDatabase.getInstance()
+                .getReference()
+                .push()
+                .setValue(new ChatMessage(messageText,
+                        FirebaseAuth.getInstance()
+                                .getCurrentUser()
+                                .getDisplayName())
+                );
     }
 }

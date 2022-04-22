@@ -262,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
                             }
 
                             Address address = addresses.get(0);
-                            String knownName = address.getLocality() + ", " + address.getThoroughfare();
+                            String knownName = address.getThoroughfare() + ", " + address.getLocality();
 
                             String messageText = "My current location is: \n" + knownName;
 

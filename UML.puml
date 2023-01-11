@@ -1,0 +1,45 @@
+@startuml
+class com.school.wetype.MainActivity {
+- FirebaseListAdapter<ChatMessage> adapter
+- ActivityResultLauncher<Intent> signInLauncher
+- ActivityResultLauncher<String[]> locationPermissionRequest
+- FusedLocationProviderClient fusedLocationClient
+~ Intent batteryStatus
+~ AirplaneModeBroadcastReceiver airplaneModeBroadcastReceiver
+- CameraManager cameraManager
+- String getCameraID
+- boolean torchModeEnabled
+# void onCreate(Bundle)
+# void onStart()
+# void onStop()
++ boolean onCreateOptionsMenu(Menu)
++ boolean onOptionsItemSelected(MenuItem)
+- void onSignInResult(FirebaseAuthUIAuthenticationResult)
+- void displayChatMessages()
++ void sendChatMessage(String)
++ void sendChatMessage(ChatMessage)
+}
+class com.school.wetype.ChatMessage {
+- String messageText
+- String messageUser
+- long messageTime
++ String getMessageText()
++ void setMessageText(String)
++ String getMessageUser()
++ void setMessageUser(String)
++ long getMessageTime()
++ void setMessageTime(long)
+}
+class com.school.wetype.AirplaneModeBroadcastReceiver {
+- MainActivity mainActivity
++ void onReceive(Context,Intent)
+}
+class com.school.wetype.LocationChatMessage {
++ void setLocationText(Context,Location)
+}
+
+
+androidx.appcompat.app.AppCompatActivity <|-- com.school.wetype.MainActivity
+android.content.BroadcastReceiver <|-- com.school.wetype.AirplaneModeBroadcastReceiver
+com.school.wetype.ChatMessage <|-- com.school.wetype.LocationChatMessage
+@enduml

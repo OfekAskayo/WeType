@@ -1,7 +1,29 @@
 package com.school.wetype;
 
 import static com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY;
-import static com.google.android.gms.location.LocationRequest.PRIORITY_NO_POWER;
+
+import android.Manifest;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
+import android.net.ConnectivityManager;
+import android.os.BatteryManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.text.format.DateFormat;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -10,30 +32,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-
-import android.Manifest;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.graphics.Camera;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraManager;
-import android.location.Address;
-import android.location.Geocoder;
-import android.location.Location;
-import android.os.Build;
-import android.os.Bundle;
-import android.text.format.DateFormat;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.TextView;
-import android.widget.Toast;
-import android.widget.ToggleButton;
 
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract;
@@ -59,8 +57,6 @@ import java.util.Locale;
 
 @RequiresApi(api = Build.VERSION_CODES.N)
 public class MainActivity extends AppCompatActivity {
-
-    private static final int PERMISSION_REQUEST_CODE = 1;
 
     private FirebaseListAdapter<ChatMessage> adapter;
     private final ActivityResultLauncher<Intent> signInLauncher = registerForActivityResult(
@@ -90,6 +86,9 @@ public class MainActivity extends AppCompatActivity {
             );
     private FusedLocationProviderClient fusedLocationClient;
 
+    Intent batteryStatus;
+    AirplaneModeBroadcastReceiver airplaneModeBroadcastReceiver;
+
     private CameraManager cameraManager;
     private String getCameraID;
     private boolean torchModeEnabled;
@@ -101,6 +100,15 @@ public class MainActivity extends AppCompatActivity {
 
         FloatingActionButton fab = findViewById(R.id.fab);
         torchModeEnabled = false;
+
+        IntentFilter batteryChanged = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        batteryStatus = this.registerReceiver(null, batteryChanged);
+
+        this.airplaneModeBroadcastReceiver = new AirplaneModeBroadcastReceiver(this);
+        IntentFilter airplaneModeChanged = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        airplaneModeChanged.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+
+        this.registerReceiver(airplaneModeBroadcastReceiver, airplaneModeChanged);
 
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
             /* startActivityForResult(
@@ -248,25 +256,14 @@ public class MainActivity extends AppCompatActivity {
                     public void onSuccess(Location location) {
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
-                            double latitude = location.getLatitude();
-                            double longitude = location.getLongitude();
 
-                            Geocoder geocoder;
-                            List<Address> addresses = null;
-                            geocoder = new Geocoder(MainActivity.this, Locale.getDefault());
+                            LocationChatMessage chatMessage = new LocationChatMessage(FirebaseAuth.getInstance()
+                                    .getCurrentUser()
+                                    .getDisplayName());
 
-                            try {
-                                addresses = geocoder.getFromLocation(latitude, longitude, 1);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
+                            chatMessage.setLocationText(MainActivity.this, location);
 
-                            Address address = addresses.get(0);
-                            String knownName = address.getThoroughfare() + ", " + address.getLocality();
-
-                            String messageText = "My current location is: \n" + knownName;
-
-                            MainActivity.this.sendChatMessage(messageText);
+                            MainActivity.this.sendChatMessage(chatMessage);
                         } else {
                             Toast.makeText(MainActivity.this, "Couldn't get current location, please try again later", Toast.LENGTH_LONG).show();
                         }
@@ -275,6 +272,16 @@ public class MainActivity extends AppCompatActivity {
                         item.getIcon().setAlpha(153);
                     }
                 });
+                return true;
+            case R.id.menu_battery_level:
+                int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+
+                float batteryPct = level * 100 / (float)scale;
+
+                String messageText = "My battery level is: " + batteryPct + "%";
+
+                sendChatMessage(messageText);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -336,7 +343,7 @@ public class MainActivity extends AppCompatActivity {
         listOfMessages.setAdapter(adapter);
     }
 
-    private void sendChatMessage(String messageText) {
+    public void sendChatMessage(String messageText) {
         // Write a message to the database
 //                FirebaseDatabase database = FirebaseDatabase.getInstance();
 //                database.getReference("message").setValue("Hello, World!");
@@ -352,5 +359,19 @@ public class MainActivity extends AppCompatActivity {
                                 .getCurrentUser()
                                 .getDisplayName())
                 );
+    }
+
+    public void sendChatMessage(ChatMessage chatMessage) {
+        // Write a message to the database
+//                FirebaseDatabase database = FirebaseDatabase.getInstance();
+//                database.getReference("message").setValue("Hello, World!");
+//                database.getReference("message").push().setValue("Hello World! Push");
+
+        // Read the input field and push a new instance
+        // of ChatMessage to the Firebase database
+        FirebaseDatabase.getInstance()
+                .getReference()
+                .push()
+                .setValue(chatMessage);
     }
 }

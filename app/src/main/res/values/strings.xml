@@ -3,4 +3,5 @@
     <string name="sign_out">Sign out</string>
     <string name="location">Location</string>
     <string name="flashlight">Flashlight</string>
+    <string name="battery_level">Battery Level</string>
 </resources>

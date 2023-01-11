@@ -2,6 +2,10 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <item android:id="@+id/menu_battery_level"
+        android:title="@string/battery_level"
+        android:icon="@drawable/ic_towtone_menu_battery_unknown"
+        app:showAsAction="ifRoom|withText" />
     <item android:id="@+id/menu_location"
         android:title="@string/location"
         android:icon="@drawable/ic_towtone_menu_location"

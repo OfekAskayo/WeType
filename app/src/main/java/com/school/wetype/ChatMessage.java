@@ -15,6 +15,12 @@ public class ChatMessage {
         messageTime = new Date().getTime();
     }
 
+    public ChatMessage(String messageUser) {
+        this.messageUser = messageUser;
+
+        messageTime = new Date().getTime();
+    }
+
     public ChatMessage(){
 
     }
